@@ -9,12 +9,11 @@ var assert = function(truth, msg){
 
 function dispatch(){
   var fns = slice.call(arguments, 0)
-  return function(){
-    var args = slice.call(arguments, 0) 
+  return function(it){
     var ans, fn
     for(var i = 0; i < fns.length; i++){
       fn  = fns[i]
-      ans = fn.apply(fn, args)
+      ans = fn(it)
       if(ans) return ans
     }
     return ans
@@ -23,7 +22,7 @@ function dispatch(){
 
 function when(pred, fn){
   return function(it){
-    if(pred(it)) return it(), fn(it)
+    if(pred(it)) return it.next(), fn(it)
   }
 }
 
@@ -56,8 +55,8 @@ var _decode = dispatch(
 )
 
 function decode(buffer) {
-  var it = iterator(new Uint8Array(buffer))
-  assert(131 === it(), 'oops, where is the magic 131?') 
+  var it = new Iterator(new Uint8Array(buffer))
+  assert(131 === it.next(), 'oops, where is the magic 131?') 
   return _decode(it)
 }
 
@@ -69,7 +68,7 @@ function intOfLen(len){
     var i = len -1
     var ans = 0
     while(i >= 0){
-      ans += it() << (i * 8)
+      ans += it.next() << (i * 8)
       i--
     }
     return ans
@@ -96,7 +95,7 @@ function decodeSimpleString(it){
 
 
 function decodeSmallInt(it){
-  return it()
+  return it.next()
 }
 
 function decodeInt(it){
@@ -110,7 +109,7 @@ function decodeFloat(it){
 }
 
 function decodeTuple(it){
-  var len = it()
+  var len = it.next()
   var tup = []
   for(var i = 0; i < len; i++){
     tup.push(_decode(it))
@@ -128,20 +127,24 @@ function decodeList(it){
 
 }
 
-function iterator(arr) {
-  var i = 0
-  var next = function(){
-    return arr[i++]
-  }
-  next.peek = function(){
-    return arr[i]
-  }
-  next.segment = function(len){
-    var seg =  arr.subarray(i, len + i)
-    i+= len
-    return seg
-  }
-  return next
+
+function Iterator(arr){
+  this.i = 0
+  this.arr = arr
 }
 
+Iterator.prototype.next = function(){
+  return this.arr[this.i++]
+}
+
+Iterator.prototype.peek = function(){
+  return this.arr[this.i]
+}
+
+Iterator.prototype.segment = function(len){
+  var i = this.i
+  var seg = this.arr.subarray(i, len + i) 
+  this.i += len
+  return seg
+}
 
