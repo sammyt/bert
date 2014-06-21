@@ -14,7 +14,10 @@ function dispatch(){
     for(var i = 0; i < fns.length; i++){
       fn  = fns[i]
       ans = fn(it)
-      if(ans) return ans
+
+      if(ans !== undefined) {
+        return ans
+      }
     }
     return ans
   }
@@ -32,25 +35,35 @@ function hasTermId(id){
   }
 }
 
-var ATOM        = hasTermId(100)
-var BINARY      = hasTermId(109)
-var STRING      = hasTermId(107)
-var INT         = hasTermId(98)
+
 var SMALL_INT   = hasTermId(97)
-var FLOAT       = hasTermId(70)
+var INT         = hasTermId(98)
+var OLD_FLOAT   = hasTermId(99)
+var ATOM        = hasTermId(100)
 var SMALL_TUPLE = hasTermId(104)
+var LARGE_TUPLE = hasTermId(105)
+var NIL         = hasTermId(106)
+var STRING      = hasTermId(107)
 var LIST        = hasTermId(108)
+var BINARY      = hasTermId(109)
+var SMALL_BIG   = hasTermId(110)
+var LARGE_BIG   = hasTermId(111)
+var FLOAT       = hasTermId(70)
 
 var _decode = dispatch(
 
   when(ATOM,        decodeAtom),
-  when(INT,         decodeInt),
   when(SMALL_INT,   decodeSmallInt),
+  when(INT,         decodeInt),
   when(FLOAT,       decodeFloat),
   when(BINARY,      decodeString),
   when(STRING,      decodeSimpleString),
   when(LIST,        decodeList),
-  when(SMALL_TUPLE, decodeTuple)
+  when(SMALL_TUPLE, decodeTuple),
+  when(LARGE_TUPLE, decodeTuple),
+  when(NIL,         decodeNil),
+  when(SMALL_BIG,   decodeBigNum),
+  when(LARGE_BIG,   decodeBiggerNum)
 
 )
 
@@ -83,6 +96,10 @@ function decodeAtom(it){
   return ':' + utf8Dec.decode(it.segment(len))
 }
 
+function decodeNil(it){
+  return null
+}
+
 function decodeString(it){
   var len = int4(it)
   return utf8Dec.decode(it.segment(len))
@@ -106,6 +123,32 @@ var ieee754 = require('ieee754')
 
 function decodeFloat(it){
   return ieee754.read(it.segment(8), 0, false, 52, 8)
+}
+
+function decodeBigNum(it){
+  var n = it.next()
+  var sign = it.next() == 0 ? 1 : -1 
+  var ans = 0
+  var i = 0
+
+  while(i < n){
+    ans += Math.pow(256, i++) * it.next()
+  }
+
+  return sign * ans 
+}
+
+function decodeBiggerNum(it){
+  var n = int2(it)
+  var sign = it.next() == 0 ? 1 : -1 
+  var ans = 0
+  var i = 0
+
+  while(i < n){
+    ans += Math.pow(256, i++) * it.next()
+  }
+
+  return sign * ans 
 }
 
 function decodeTuple(it){
